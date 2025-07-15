@@ -1,5 +1,4 @@
 # CustomLoadingScreen
-Drone.io: [![Build Status](https://drone.io/github.com/AlexIIL/BetterLoadingScreen/status.png)](https://drone.io/github.com/AlexIIL/BetterLoadingScreen/latest)
 
 ## Building from scratch
 Clone this repository into an empty folder

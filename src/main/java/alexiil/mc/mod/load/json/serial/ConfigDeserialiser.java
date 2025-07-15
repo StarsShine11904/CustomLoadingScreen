@@ -35,7 +35,7 @@ public enum ConfigDeserialiser implements IThrowingDeserialiser<JsonConfig> {
             JsonRenderingPart[] renders = JsonUtils.deserializeClass(obj, "renders", context, JsonRenderingPart[].class);
             JsonFactory[] factories = JsonUtils.deserializeClass(obj, "factories", context, JsonFactory[].class);
             JsonAction[] actions = JsonUtils.deserializeClass(obj, "actions", context, JsonAction[].class);
-            JsonVariable[] constants = obj.has("constants") ? JsonUtils.deserializeClass(obj, "constants", context, JsonConstant[].class) : new JsonVariable[0];
+            JsonConstant[] constants = obj.has("constants") ? JsonUtils.deserializeClass(obj, "constants", context, JsonConstant[].class) : new JsonConstant[0];
             JsonVariable[] variables = obj.has("variables") ? JsonUtils.deserializeClass(obj, "variables", context, JsonVariable[].class) : new JsonVariable[0];
 
             List<String[]> functions = new ArrayList<>();

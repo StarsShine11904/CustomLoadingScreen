@@ -9,6 +9,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import alexiil.mc.mod.load.json.JsonVariable;
+import alexiil.mc.mod.load.json.JsonVariable.JsonConstant;
 
 import buildcraft.lib.expression.api.InvalidExpressionException;
 
@@ -26,13 +27,13 @@ public enum VariableArrayDeserialiser implements IThrowingDeserialiser<JsonVaria
     public JsonVariable[] deserialize0(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws InvalidExpressionException {
         JsonObject obj = json.getAsJsonObject();
         Set<Entry<String, JsonElement>> entrySet = obj.entrySet();
-        JsonVariable[] vars = new JsonVariable[entrySet.size()];
+        JsonVariable[] vars = constant ? new JsonConstant[entrySet.size()] : new JsonVariable[entrySet.size()];
         int i = 0;
         for (Entry<String, JsonElement> entry : entrySet) {
             String name = entry.getKey();
             JsonElement jvalue = entry.getValue();
             String value = jvalue.getAsString();
-            JsonVariable var = new JsonVariable(constant, name, value);
+            JsonVariable var = constant ? new JsonConstant(constant, name, value) : new JsonVariable(constant, name, value);
             var.setSource(jvalue);
             vars[i++] = var;
         }
