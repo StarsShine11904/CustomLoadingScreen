@@ -164,6 +164,18 @@ public class CustomLoadingScreen {
     @EventHandler
     public static void preInit(FMLPreInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(CustomLoadingScreen.class);
+        if (Boolean.getBoolean("custom_loading_screen.add_a_100_second_startup_delay")) {
+            CLSLog.info("Sleeping for 100 seconds because the system property 'custom_loading_screen.add_a_100_second_startup_delay' is set to true.");
+            for (int i = 0; i < 100; i++) {
+                CLSLog.info("Sleeping for 100 seconds (currently on second " + i + ")");
+                try {
+                    Thread.sleep(1_000);
+                } catch (InterruptedException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     @SubscribeEvent

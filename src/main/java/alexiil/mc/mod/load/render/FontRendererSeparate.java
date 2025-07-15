@@ -120,7 +120,7 @@ public class FontRendererSeparate extends FontRenderer {
 
     @Override
     protected void enableAlpha() {
-        GL11.glEnable(GL11.GL_ALPHA);
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
     }
 
     @Override

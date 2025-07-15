@@ -76,7 +76,7 @@ public class TextureManagerCLS extends TextureManager {
         Long last = currentTime;
         long next = System.currentTimeMillis();
 
-        if (last + 1000 < next) {
+        if (last + 1000 > next) {
             return;
         }
 

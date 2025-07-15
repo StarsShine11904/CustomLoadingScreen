@@ -283,10 +283,6 @@ public final class TextureLoader {
         if (GLContext.getCapabilities().GL_KHR_debug) {
             KHRDebug.glPopDebugGroup();
         }
-
-        if (GLContext.getCapabilities().GL_KHR_debug) {
-            KHRDebug.glPushDebugGroup(KHRDebug.GL_DEBUG_SOURCE_APPLICATION, 10, "CLS_Render");
-        }
     }
 
     public static PreScannedImageData preScan(ResourceLocation res) {

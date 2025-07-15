@@ -73,13 +73,13 @@ public class MinecraftDisplayerRenderer {
         GL11.glLoadIdentity();
         GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glDisable(GL11.GL_FOG);
-        GL11.glDisable(GL11.GL_DEPTH);
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glEnable(GL11.GL_TEXTURE_2D);
 
         GL11.glClearColor(1, 1, 1, 1);
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
 
-        GL11.glEnable(GL11.GL_ALPHA);
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
         GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
 
         GL11.glEnable(GL11.GL_BLEND);
@@ -120,7 +120,7 @@ public class MinecraftDisplayerRenderer {
         GL11.glEnable(GL11.GL_BLEND);
         GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 0, 0);
 
-        GL11.glEnable(GL11.GL_ALPHA);
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
         GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
         GL11.glColor4f(1, 1, 1, 1);
 
@@ -150,7 +150,7 @@ public class MinecraftDisplayerRenderer {
     public void close() {
         // GL11.glEnable(GL11.GL_BLEND);
         // GL14.glBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 0, 1);
-        // GL11.glEnable(GL11.GL_ALPHA);
+        // GL11.glEnable(GL11.GL_ALPHA_TEST);
         // GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
         // GL11.glClearColor(1, 1, 1, 1);
         // GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);

@@ -132,7 +132,7 @@ public class BakedPanoramaRender extends BakedRender {
         GL11.glPopMatrix();
         GL11.glMatrixMode(GL11.GL_MODELVIEW);
         GL11.glPopMatrix();
-        GL11.glEnable(GL11.GL_ALPHA);
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
     }
 
     @Override

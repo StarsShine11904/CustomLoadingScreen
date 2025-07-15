@@ -189,6 +189,8 @@ public class MainSplashRenderer {
         boolean transitionOutDone = false;
         start = System.currentTimeMillis();
 
+        OpenGlErrorUtil.setupIfFlag();
+
         while (!transitionOutDone) {
             if (CustomLoadingScreen.darkMode) {
                 GL11.glClearColor(0, 0, 0, 1);

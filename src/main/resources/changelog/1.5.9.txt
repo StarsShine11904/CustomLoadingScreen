@@ -1,0 +1,5 @@
+Bug Fixes:
+
+- Fixed incorrect usage of OpenGL, causing "OpenGL Error 1280 GL_INVALID_ENUM" error messages to be generated.
+- Fixed the texture deletion system somtimes turning itself off, leading to out-of-memory errors.
+    - This generally only happened when using slideshows with thousands of images (like for videos)
