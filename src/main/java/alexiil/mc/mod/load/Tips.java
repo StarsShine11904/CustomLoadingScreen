@@ -34,7 +34,9 @@ public class Tips {
                     language = parts[1].toLowerCase(Locale.ROOT);
                 }
             }
-        } catch (IOException ignored) { }
+        } catch (IOException io) {
+            CLSLog.warn("Failed to load language from options.txt", io);
+        }
 
         CLSLog.info("Target tips language: " + language);
 
