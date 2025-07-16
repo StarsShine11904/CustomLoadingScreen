@@ -8,12 +8,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 import javax.annotation.Nullable;
 
 /** Basic tips manager. Provides access to a single list of tips. */
 public class Tips {
 
+    private static String language = "en_us";
     private static final List<String> tips = new ArrayList<>();
     private static boolean anyTips = false;
 
@@ -23,6 +25,19 @@ public class Tips {
     }
 
     public static void load() {
+        File options = new File("options.txt");
+        try (BufferedReader reader = new BufferedReader(new FileReader(options))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(":");
+                if (parts[0].equals("lang")) {
+                    language = parts[1].toLowerCase(Locale.ROOT);
+                }
+            }
+        } catch (IOException ignored) { }
+
+        CLSLog.info("Target tips language: " + language);
+
         File f = new File("config/customloadingscreen_tips.txt");
         if (!f.exists()) {
             try {
@@ -56,21 +71,53 @@ public class Tips {
         }
     }
 
-    public static void parseTips(BufferedReader from, List<String> to) throws IOException {
-        String line;
-        while ((line = from.readLine()) != null) {
-            if (line.isEmpty() || line.startsWith("#")) {
+    public static List<String> parseTips(BufferedReader from) throws IOException {
+        List<String> lines = new ArrayList<>();
+
+        boolean firstTipFlag = false;
+        boolean isFirstTipLangIndicator = false;
+        String _line;
+        while ((_line = from.readLine()) != null) {
+            _line = _line.trim();
+            if (_line.isEmpty() || _line.startsWith("#")) {
                 // Comment
             } else {
-                to.add(line);
+                if (!firstTipFlag) {
+                    firstTipFlag = true;
+                    isFirstTipLangIndicator = _line.startsWith("[") && _line.endsWith("]");
+                }
+                lines.add(_line);
             }
         }
-    }
 
-    public static List<String> parseTips(BufferedReader from) throws IOException {
-        List<String> list = new ArrayList<>();
-        parseTips(from, list);
-        return list;
+        List<String> availableLangs = new ArrayList<>();
+        for (String line: lines) {
+            if (line.startsWith("[") && line.endsWith("]")) {
+                String lang = line.substring(1, line.length() - 1).trim().toLowerCase(Locale.ROOT);
+                availableLangs.add(lang);
+            }
+        }
+        if (!availableLangs.contains("en_us") && !isFirstTipLangIndicator) {
+            availableLangs.add("en_us");
+        }
+        String targetLang = language;
+        if (!availableLangs.contains(targetLang)) {
+            targetLang = availableLangs.contains("en_us") ? "en_us" : availableLangs.get(0);
+        }
+
+        String currLangIndicator = "en_us";
+        List<String> output = new ArrayList<>();
+        for (String line: lines) {
+            if (line.startsWith("[") && line.endsWith("]")) {
+                currLangIndicator = line.substring(1, line.length() - 1).trim().toLowerCase(Locale.ROOT);
+            } else {
+                if (targetLang.equals(currLangIndicator)) {
+                    output.add(line);
+                }
+            }
+        }
+
+        return output;
     }
 
     public static String getFirstTip() {
