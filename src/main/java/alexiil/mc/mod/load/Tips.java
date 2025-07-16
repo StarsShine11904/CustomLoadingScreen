@@ -5,10 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 import javax.annotation.Nullable;
 
@@ -89,34 +86,60 @@ public class Tips {
             } else {
                 if (!firstTipFlag) {
                     firstTipFlag = true;
-                    isFirstTipLangIndicator = _line.startsWith("[") && _line.endsWith("]");
+                    isFirstTipLangIndicator = _line.startsWith("[lang:") && _line.endsWith("]");
                 }
                 lines.add(_line);
             }
         }
 
-        List<String> availableLangs = new ArrayList<>();
+        List<List<String>> availableLangs = new ArrayList<>();
         for (String line: lines) {
-            if (line.startsWith("[") && line.endsWith("]")) {
-                String lang = line.substring(1, line.length() - 1).trim().toLowerCase(Locale.ROOT);
-                availableLangs.add(lang);
+            if (line.startsWith("[lang:") && line.endsWith("]")) {
+                String langArg = line.substring(6, line.length() - 1).trim().toLowerCase(Locale.ROOT);
+                String[] args = langArg.split(",");
+                for (int i = 0; i < args.length; i++) {
+                    args[i] = args[i].trim();
+                }
+                availableLangs.add(Arrays.asList(args));
             }
         }
-        if (!availableLangs.contains("en_us") && !isFirstTipLangIndicator) {
-            availableLangs.add("en_us");
-        }
+
+        // Target lang not found edge case
+        boolean foundTargetLang = false;
         String targetLang = language;
-        if (!availableLangs.contains(targetLang)) {
-            targetLang = availableLangs.contains("en_us") ? "en_us" : availableLangs.get(0);
+        for (List<String> langs: availableLangs) {
+            if (langs.contains(targetLang)) {
+                foundTargetLang = true;
+                break;
+            }
+        }
+        if (!foundTargetLang) {
+            // Cuz we treat the first section as en_us section
+            boolean foundEN_US = !isFirstTipLangIndicator;
+            if (!foundEN_US) {
+                for (List<String> langs: availableLangs) {
+                    if (langs.contains("en_us")) {
+                        foundEN_US = true;
+                        break;
+                    }
+                }
+            }
+            // Falls back to en_us if possible
+            // Otherwise use the first language
+            targetLang = foundEN_US ? "en_us" : availableLangs.get(0).get(0);
         }
 
-        String currLangIndicator = "en_us";
+        // Treat the first section as en_us section
+        List<String> currLangIndicator = Collections.singletonList("en_us");
+        int langIndicatorIndex = 0;
+
         List<String> output = new ArrayList<>();
         for (String line: lines) {
-            if (line.startsWith("[") && line.endsWith("]")) {
-                currLangIndicator = line.substring(1, line.length() - 1).trim().toLowerCase(Locale.ROOT);
+            if (line.startsWith("[lang:") && line.endsWith("]")) {
+                // Fetch from pre-processed list
+                currLangIndicator = availableLangs.get(langIndicatorIndex++);
             } else {
-                if (targetLang.equals(currLangIndicator)) {
+                if (currLangIndicator.contains(targetLang)) {
                     output.add(line);
                 }
             }
