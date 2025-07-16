@@ -5,15 +5,14 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import javax.annotation.Nullable;
 
 /** Basic tips manager. Provides access to a single list of tips. */
 public class Tips {
 
+    private static String language = "en_us";
     private static final List<String> tips = new ArrayList<>();
     private static boolean anyTips = false;
 
@@ -23,6 +22,24 @@ public class Tips {
     }
 
     public static void load() {
+        File options = new File("options.txt");
+        if (options.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(options))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] parts = line.split(":");
+                    if (parts.length > 1 && parts[0].equals("lang")) {
+                        language = parts[1].toLowerCase(Locale.ROOT);
+                        break;
+                    }
+                }
+            } catch (IOException io) {
+                CLSLog.warn("Failed to load language from options.txt", io);
+            }
+        }
+
+        CLSLog.info("Target tips language: " + language);
+
         File f = new File("config/customloadingscreen_tips.txt");
         if (!f.exists()) {
             try {
@@ -56,21 +73,79 @@ public class Tips {
         }
     }
 
-    public static void parseTips(BufferedReader from, List<String> to) throws IOException {
-        String line;
-        while ((line = from.readLine()) != null) {
-            if (line.isEmpty() || line.startsWith("#")) {
+    public static List<String> parseTips(BufferedReader from) throws IOException {
+        List<String> lines = new ArrayList<>();
+
+        boolean firstTipFlag = false;
+        boolean isFirstTipLangIndicator = false;
+        String _line;
+        while ((_line = from.readLine()) != null) {
+            _line = _line.trim();
+            if (_line.isEmpty() || _line.startsWith("#")) {
                 // Comment
             } else {
-                to.add(line);
+                if (!firstTipFlag) {
+                    firstTipFlag = true;
+                    isFirstTipLangIndicator = _line.startsWith("[lang:") && _line.endsWith("]");
+                }
+                lines.add(_line);
             }
         }
-    }
 
-    public static List<String> parseTips(BufferedReader from) throws IOException {
-        List<String> list = new ArrayList<>();
-        parseTips(from, list);
-        return list;
+        List<List<String>> availableLangs = new ArrayList<>();
+        for (String line: lines) {
+            if (line.startsWith("[lang:") && line.endsWith("]")) {
+                String langArg = line.substring(6, line.length() - 1).trim().toLowerCase(Locale.ROOT);
+                String[] args = langArg.split(",");
+                for (int i = 0; i < args.length; i++) {
+                    args[i] = args[i].trim();
+                }
+                availableLangs.add(Arrays.asList(args));
+            }
+        }
+
+        // Target lang not found edge case
+        boolean foundTargetLang = false;
+        String targetLang = language;
+        for (List<String> langs: availableLangs) {
+            if (langs.contains(targetLang)) {
+                foundTargetLang = true;
+                break;
+            }
+        }
+        if (!foundTargetLang) {
+            // Cuz we treat the first section as en_us section
+            boolean foundEN_US = !isFirstTipLangIndicator;
+            if (!foundEN_US) {
+                for (List<String> langs: availableLangs) {
+                    if (langs.contains("en_us")) {
+                        foundEN_US = true;
+                        break;
+                    }
+                }
+            }
+            // Falls back to en_us if possible
+            // Otherwise use the first language
+            targetLang = foundEN_US ? "en_us" : availableLangs.get(0).get(0);
+        }
+
+        // Treat the first section as en_us section
+        List<String> currLangIndicator = Collections.singletonList("en_us");
+        int langIndicatorIndex = 0;
+
+        List<String> output = new ArrayList<>();
+        for (String line: lines) {
+            if (line.startsWith("[lang:") && line.endsWith("]")) {
+                // Fetch from pre-processed list
+                currLangIndicator = availableLangs.get(langIndicatorIndex++);
+            } else {
+                if (currLangIndicator.contains(targetLang)) {
+                    output.add(line);
+                }
+            }
+        }
+
+        return output;
     }
 
     public static String getFirstTip() {
