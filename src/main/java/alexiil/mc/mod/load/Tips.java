@@ -30,7 +30,7 @@ public class Tips {
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] parts = line.split(":");
-                if (parts[0].equals("lang")) {
+                if (parts.length > 1 && parts[0].equals("lang")) {
                     language = parts[1].toLowerCase(Locale.ROOT);
                 }
             }
