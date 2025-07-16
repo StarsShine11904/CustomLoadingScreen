@@ -26,16 +26,19 @@ public class Tips {
 
     public static void load() {
         File options = new File("options.txt");
-        try (BufferedReader reader = new BufferedReader(new FileReader(options))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(":");
-                if (parts.length > 1 && parts[0].equals("lang")) {
-                    language = parts[1].toLowerCase(Locale.ROOT);
+        if (options.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(options))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] parts = line.split(":");
+                    if (parts.length > 1 && parts[0].equals("lang")) {
+                        language = parts[1].toLowerCase(Locale.ROOT);
+                        break;
+                    }
                 }
+            } catch (IOException io) {
+                CLSLog.warn("Failed to load language from options.txt", io);
             }
-        } catch (IOException io) {
-            CLSLog.warn("Failed to load language from options.txt", io);
         }
 
         CLSLog.info("Target tips language: " + language);
