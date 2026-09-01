@@ -3,10 +3,10 @@ package alexiil.mc.mod.load.baked.render;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.glu.Project;
 
-import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 import alexiil.mc.mod.load.baked.BakedRender;
@@ -16,9 +16,6 @@ import buildcraft.lib.expression.api.IExpressionNode.INodeDouble;
 
 public class BakedPanoramaRender extends BakedRender {
 
-    /** We only ever render 4 x (3 pos, 2 uv, 1 colour) ints each time then reset for the next face.
-     * <p>
-     * So this 64 is overkill. */
     private static final int TESS_INT_COUNT = 0x40;
 
     private final Tessellator tess = new Tessellator(TESS_INT_COUNT);
@@ -26,16 +23,16 @@ public class BakedPanoramaRender extends BakedRender {
     /** Timer used to rotate the panorama, increases every minecraft tick. (20tps) */
     private double actualAngle;
     private final INodeDouble angleFunc;
-    private final ResourceLocation[] cubeSides;
+    private final Identifier[] cubeSides;
 
     public BakedPanoramaRender(INodeDouble angle, String resourceLocation) {
         String[] strings = new String[6];
         for (int i = 0; i < 6; i++) {
             strings[i] = resourceLocation.replace("_x", "_" + i);
         }
-        cubeSides = new ResourceLocation[6];
+        cubeSides = new Identifier[6];
         for (int i = 0; i < 6; i++) {
-            cubeSides[i] = new ResourceLocation(strings[i]);
+            cubeSides[i] = new Identifier(strings[i]);
         }
         angleFunc = angle;
     }
@@ -43,18 +40,11 @@ public class BakedPanoramaRender extends BakedRender {
     @Override
     public void preLoad(MinecraftDisplayerRenderer renderer) {
         super.preLoad(renderer);
-
-        for (ResourceLocation loc : cubeSides) {
-            // TODO: Replace this with loading the texture data to bind on the correct thread.
-            // TextureLoader.bindTexture(renderer.textureManager, loc);
-        }
     }
 
     @Override
     public void evaluateVariables(MinecraftDisplayerRenderer renderer) {}
 
-    /* This is mostly the same as GuiMainMenu.renderSkyBox() method, with a few things removed, and a bit of
-     * customizability added. TODO: Add customizability */
     @Override
     public void render(MinecraftDisplayerRenderer renderer) {
         actualAngle = angleFunc.evaluate();
@@ -109,14 +99,14 @@ public class BakedPanoramaRender extends BakedRender {
                 }
 
                 renderer.textureManager.bindTexture(cubeSides[l]);
-                vb.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
+                vb.begin(GL11.GL_QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
                 int rgb = 0xFF;
                 int alpha = 255 / (k + 1);
                 float f4 = 0.0F;
-                vb.pos(-1.0D, -1.0D, 1.0D).tex(0.0F + f4, 0.0F + f4).color(rgb, rgb, rgb, alpha).endVertex();
-                vb.pos(1.0D, -1.0D, 1.0D).tex(1.0F - f4, 0.0F + f4).color(rgb, rgb, rgb, alpha).endVertex();
-                vb.pos(1.0D, 1.0D, 1.0D).tex(1.0F - f4, 1.0F - f4).color(rgb, rgb, rgb, alpha).endVertex();
-                vb.pos(-1.0D, 1.0D, 1.0D).tex(0.0F + f4, 1.0F - f4).color(rgb, rgb, rgb, alpha).endVertex();
+                vb.vertex(-1.0D, -1.0D, 1.0D).texture(0.0F + f4, 0.0F + f4).color(rgb, rgb, rgb, alpha).next();
+                vb.vertex(1.0D, -1.0D, 1.0D).texture(1.0F - f4, 0.0F + f4).color(rgb, rgb, rgb, alpha).next();
+                vb.vertex(1.0D, 1.0D, 1.0D).texture(1.0F - f4, 1.0F - f4).color(rgb, rgb, rgb, alpha).next();
+                vb.vertex(-1.0D, 1.0D, 1.0D).texture(0.0F + f4, 1.0F - f4).color(rgb, rgb, rgb, alpha).next();
                 tess.draw();
                 GL11.glPopMatrix();
             }
@@ -125,7 +115,7 @@ public class BakedPanoramaRender extends BakedRender {
             GL11.glColorMask(true, true, true, false);
         }
 
-        vb.setTranslation(0.0D, 0.0D, 0.0D);
+        vb.setOffset(0.0D, 0.0D, 0.0D);
         GL11.glColorMask(true, true, true, true);
         GL11.glRotatef(-180.0F, 1.0F, 0.0F, 0.0F);
         GL11.glMatrixMode(GL11.GL_PROJECTION);
