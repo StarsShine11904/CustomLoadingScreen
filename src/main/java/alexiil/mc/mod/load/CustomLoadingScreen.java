@@ -3,146 +3,115 @@ package alexiil.mc.mod.load;
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import java.util.Properties;
 import java.util.Random;
 
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.common.config.Configuration;
-import net.minecraftforge.common.config.Property;
-import net.minecraftforge.fml.client.event.ConfigChangedEvent;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.Mod.EventHandler;
-import net.minecraftforge.fml.common.event.FMLConstructionEvent;
-import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.loader.api.FabricLoader;
 
 import alexiil.mc.mod.load.frame.FrameDisplayer;
 import alexiil.mc.mod.load.render.MainSplashRenderer;
 
-@Mod(
-    //
-    modid = Lib.Mod.ID, //
-    guiFactory = "alexiil.mc.mod.load.ConfigGuiFactory", //
-    acceptableRemoteVersions = "*", //
-    clientSideOnly = true//
-)
-public class CustomLoadingScreen {
-    public static final Configuration CONFIG;
+public class CustomLoadingScreen implements ClientModInitializer {
+    public static final String MOD_ID = "customloadingscreen";
 
-    private static final Property PROP_FRAME;
-    private static final Property PROP_USE_CUSTOM;
-    // private static final Property PROP_DARK_MODE;
-    private static final Property PROP_CONFIG;
-    private static final Property PROP_CONFIG_RANDOMS;
-    private static final Property PROP_WAIT;
-    private static final Property PROP_FPS_LIMIT;
-    private static final Property PROP_TEXTURE_CLEAR_INTERVAL;
-    private static final Property PROP_DEBUG_RESOURCE_LOADING;
-
-    public static final boolean shouldWait;
-    public static final boolean useFrame;
-    public static final boolean useCustom;
-    public static final boolean darkMode;
-    public static final boolean debugResourceLoading;
-    public static final String customConfigPath;
-    public static final int fpsLimit;
-    public static final int textureClearInterval;
+    public static boolean shouldWait = true;
+    public static boolean useFrame = false;
+    public static boolean useCustom = true;
+    public static boolean darkMode = false;
+    public static boolean debugResourceLoading = false;
+    public static String customConfigPath = "sample/default";
+    public static int fpsLimit = 75;
+    public static int textureClearInterval = 10;
 
     private static FrameDisplayer displayer;
+    public static CustomLoadingScreen instance;
 
-    static {
-        CONFIG = new Configuration(new File("./config/customloadingscreen.cfg"));
+    @Override
+    public void onInitializeClient() {
+        instance = this;
+        CLSLog.info("Initializing Custom Loading Screen for Legacy Fabric...");
+        loadConfig();
+        MainSplashRenderer.onReachConstruct();
+    }
 
-        PROP_FRAME = CONFIG.get("general", "use_frame", false);
-        PROP_USE_CUSTOM = CONFIG.get("general", "use_custom", true);
+    private static void loadConfig() {
+        File configDir = FabricLoader.getInstance().getConfigDir().toFile();
+        File configFile = new File(configDir, "customloadingscreen.properties");
+        Properties props = new Properties();
 
-        PROP_CONFIG = CONFIG.get("general", "screen_config", "builtin/random");
-        PROP_CONFIG.setComment(
-            "Sets the config to use for the custom loading screen. Use 'builtin/random' for a random loading screen on each load."
-                + "\nAlternatively you can prefix this with 'config/' to load from the 'config/customloadingscreen/' directory."
-                + "\nOr you can use 'sample/slideshow' to display images from config/customloadingscreen/slideshow_#.png."
-                + "\nOr you can set this to 'config/example' to use the default example config."
-        );
-
-        String[] defaultRandoms = { "sample/default", "sample/white", "sample/scrolling", "sample_panorama_lower" };
-        PROP_CONFIG_RANDOMS = CONFIG.get("general", "random_configs", defaultRandoms);
-
-        PROP_WAIT = CONFIG.get("general", "smooth_init", true);
-        PROP_WAIT.setComment(
-            "Sleep for a tiny amount of time each mod progress stage to make configs that rely on receiving all mod load stages work a bit better."
-        );
-
-        // PROP_DARK_MODE = CONFIG.get("general", "dark_mode", false);
-        // PROP_DARK_MODE.setComment("Use dark-mode for loading screens rather than light.");
-        darkMode = false;// PROP_DARK_MODE.getBoolean();
-
-        PROP_DEBUG_RESOURCE_LOADING = CONFIG.get("debug", "resource_loading", false);
-        debugResourceLoading = PROP_DEBUG_RESOURCE_LOADING.getBoolean();
-
-        PROP_FPS_LIMIT = CONFIG.get("general", "fps_limit", 75);
-        PROP_FPS_LIMIT.setComment(
-            "The maximum fps to target for the loading screen. The default is 75. Values between 2 and 300 are allowed."
-        );
-        PROP_FPS_LIMIT.setMinValue(2);
-        PROP_FPS_LIMIT.setMaxValue(300);
-        fpsLimit = Math.max(2, Math.min(300, PROP_FPS_LIMIT.getInt()));
-
-        PROP_TEXTURE_CLEAR_INTERVAL = CONFIG.get("performance", "texture_clear_interval", 10);
-        PROP_TEXTURE_CLEAR_INTERVAL.setMinValue(0);
-        PROP_TEXTURE_CLEAR_INTERVAL.setComment(
-            "The interval, in seconds, after which textures will be deleted to save memory, at the cost of additional disk reading if they are used later."
-                + "\nSet debug.resource_loading to true to log when this occurs."
-                + "\nSet to 0 to disable texture clearing."
-        );
-        textureClearInterval = Math.max(0, PROP_TEXTURE_CLEAR_INTERVAL.getInt(10));
-
-        useCustom = PROP_USE_CUSTOM.getBoolean();
-
-        String customName = PROP_CONFIG.getString();
-        if ("builtin/random".equals(customName)) {
-            String[] possible = PROP_CONFIG_RANDOMS.getStringList();
-            if (possible.length == 0) {
-                CLSLog.info("No randoms! Defaulting to sample/generic_error...");
-                customConfigPath = "sample/generic_error";
-            } else {
-                customConfigPath = possible[new Random().nextInt(possible.length)];
+        if (configFile.exists()) {
+            try (FileInputStream in = new FileInputStream(configFile)) {
+                props.load(in);
+            } catch (IOException e) {
+                CLSLog.warn("Failed to load customloadingscreen.properties", e);
             }
-        } else {
-            customConfigPath = customName == null ? "" : customName;
         }
-        useFrame = PROP_FRAME.getBoolean();
+
+        useCustom = Boolean.parseBoolean(props.getProperty("use_custom", "true"));
+        useFrame = Boolean.parseBoolean(props.getProperty("use_frame", "false"));
+        shouldWait = Boolean.parseBoolean(props.getProperty("smooth_init", "true"));
+        debugResourceLoading = Boolean.parseBoolean(props.getProperty("debug_resource_loading", "false"));
+
+        try {
+            fpsLimit = Math.max(2, Math.min(300, Integer.parseInt(props.getProperty("fps_limit", "75"))));
+        } catch (NumberFormatException ignored) {
+            fpsLimit = 75;
+        }
+
+        try {
+            textureClearInterval = Math.max(0, Integer.parseInt(props.getProperty("texture_clear_interval", "10")));
+        } catch (NumberFormatException ignored) {
+            textureClearInterval = 10;
+        }
+
+        String customName = props.getProperty("screen_config", "builtin/random");
+        if ("builtin/random".equals(customName)) {
+            String[] possible = { "sample/default", "sample/white", "sample/scrolling", "sample_panorama_lower" };
+            customConfigPath = possible[new Random().nextInt(possible.length)];
+        } else {
+            customConfigPath = customName == null ? "sample/default" : customName;
+        }
+
+        // 儲存預設/現有設定檔
+        props.setProperty("use_custom", String.valueOf(useCustom));
+        props.setProperty("use_frame", String.valueOf(useFrame));
+        props.setProperty("smooth_init", String.valueOf(shouldWait));
+        props.setProperty("fps_limit", String.valueOf(fpsLimit));
+        props.setProperty("texture_clear_interval", String.valueOf(textureClearInterval));
+        props.setProperty("screen_config", customName);
+        props.setProperty("debug_resource_loading", String.valueOf(debugResourceLoading));
+
+        try (FileOutputStream out = new FileOutputStream(configFile)) {
+            props.store(out, "Custom Loading Screen Configuration");
+        } catch (IOException e) {
+            CLSLog.warn("Failed to save customloadingscreen.properties", e);
+        }
+
         if (useFrame) {
             displayer = new FrameDisplayer();
             displayer.start();
         }
 
-        shouldWait = PROP_WAIT.getBoolean();
-
-        if (CONFIG.hasChanged()) {
-            CONFIG.save();
-        }
-
-        File clsRoot = new File("./config/customloadingscreen/");
-
+        // 初始化範例主題 JSON 目錄
+        File clsRoot = new File(configDir, "customloadingscreen");
         if (!clsRoot.exists()) {
-            clsRoot.mkdir();
+            clsRoot.mkdirs();
         }
 
         File clsExample = new File(clsRoot, "example.json");
-
         if (!clsExample.exists()) {
-
-            try (OutputStream out = new FileOutputStream(clsExample)) {
-                BufferedOutputStream bos = new BufferedOutputStream(out);
-                BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(bos));
-
+            try (OutputStream out = new FileOutputStream(clsExample);
+                 BufferedOutputStream bos = new BufferedOutputStream(out);
+                 BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(bos, StandardCharsets.UTF_8))) {
                 writeExampleCfg(bw);
-
                 bw.flush();
-
             } catch (IOException e) {
                 CLSLog.warn("Failed to write the example config file!", e);
             }
@@ -155,43 +124,12 @@ public class CustomLoadingScreen {
         }
     }
 
-    @EventHandler
-    public static void construct(FMLConstructionEvent event) {
-        ModLoadingListener.setup();
-        MainSplashRenderer.onReachConstruct();
-    }
-
-    @EventHandler
-    public static void preInit(FMLPreInitializationEvent event) {
-        MinecraftForge.EVENT_BUS.register(CustomLoadingScreen.class);
-        if (Boolean.getBoolean("custom_loading_screen.add_a_100_second_startup_delay")) {
-            CLSLog.info("Sleeping for 100 seconds because the system property 'custom_loading_screen.add_a_100_second_startup_delay' is set to true.");
-            for (int i = 0; i < 100; i++) {
-                CLSLog.info("Sleeping for 100 seconds (currently on second " + i + ")");
-                try {
-                    Thread.sleep(1_000);
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    @SubscribeEvent
-    public static void onConfigChanged(ConfigChangedEvent.OnConfigChangedEvent event) {
-        if (CONFIG.hasChanged()) {
-            CONFIG.save();
-        }
-    }
-
     private static void ln(BufferedWriter bw, String str) throws IOException {
         bw.write(str.replace('#', '"'));
         bw.newLine();
     }
 
     private static void writeExampleCfg(BufferedWriter bw) throws IOException {
-        // Exploded copy of "sample/config/default.json"
         ln(bw, "{");
         ln(bw, "    #renders#: [");
         ln(bw, "        {");
