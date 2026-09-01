@@ -1,25 +1,18 @@
 package alexiil.mc.mod.load.progress;
 
-import alexiil.mc.mod.load.ModLoadingListener;
-import alexiil.mc.mod.load.progress.SingleProgressBarTracker.ReloadPart;
-
 public class ProgressSectionInfo {
-    public final ReloadPart reloadPart;
-    public final ModLoadingListener.LoaderStage modState;
+    public final String stageName;
     public final String modId;
-
     public long time;
 
-    public ProgressSectionInfo(ReloadPart reloadPart, long time) {
-        this.reloadPart = reloadPart;
-        this.modState = null;
+    public ProgressSectionInfo(String stageName, long time) {
+        this.stageName = stageName;
         this.modId = null;
         this.time = time;
     }
 
-    public ProgressSectionInfo(ModLoadingListener.LoaderStage modState, String modId, long time) {
-        this.reloadPart = null;
-        this.modState = modState;
+    public ProgressSectionInfo(String stageName, String modId, long time) {
+        this.stageName = stageName;
         this.modId = modId;
         this.time = time;
     }
@@ -27,10 +20,10 @@ public class ProgressSectionInfo {
     @Override
     public String toString() {
         String pre;
-        if (reloadPart != null) {
-            pre = reloadPart.toString();
+        if (modId != null && !modId.isEmpty()) {
+            pre = stageName + ": " + modId;
         } else {
-            pre = modState + ": " + modId;
+            pre = stageName != null ? stageName : "Unknown";
         }
         return pre + " took " + time + "ms";
     }
