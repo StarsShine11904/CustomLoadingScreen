@@ -2,7 +2,7 @@ package alexiil.mc.mod.load.baked.render;
 
 import org.lwjgl.opengl.GL11;
 
-import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.font.TextRenderer;
 
 import alexiil.mc.mod.load.render.MinecraftDisplayerRenderer;
 
@@ -41,10 +41,10 @@ public abstract class BakedTextRender extends BakedRenderPositioned {
     public void evaluateVariables(MinecraftDisplayerRenderer renderer) {
         _text = getText();
         _scale = scale.evaluate();
-        FontRenderer font = renderer.fontRenderer(fontTexture);
+        TextRenderer font = renderer.fontRenderer(fontTexture);
         _width = (int) (font.getStringWidth(_text) * _scale);
         varWidth.value = _width;
-        varHeight.value = font.FONT_HEIGHT * _scale;
+        varHeight.value = font.fontHeight * _scale;
         _x = x.evaluate();
         _y = y.evaluate();
         _colour = colour.evaluate();
@@ -57,11 +57,11 @@ public abstract class BakedTextRender extends BakedRenderPositioned {
 
     @Override
     public void render(MinecraftDisplayerRenderer renderer) {
-        FontRenderer font = renderer.fontRenderer(fontTexture);
+        TextRenderer font = renderer.fontRenderer(fontTexture);
         GL11.glPushMatrix();
         GL11.glTranslated(_x, _y, 0);
         GL11.glScaled(_scale, _scale, _scale);
-        font.drawString(_text, 0, 0, (int) _colour, false);
+        font.draw(_text, 0, 0, (int) _colour, false);
         GL11.glPopMatrix();
         GL11.glColor4f(1, 1, 1, 1);
     }
