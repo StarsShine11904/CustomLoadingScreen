@@ -1,6 +1,6 @@
 package alexiil.mc.mod.load.json;
 
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.baked.BakedAction;
 import alexiil.mc.mod.load.baked.BakedConfig;
@@ -46,7 +46,7 @@ public class JsonConfig extends JsonConfigurable<JsonConfig, BakedConfig> {
     }
 
     @Override
-    public void setLocation(ResourceLocation location) {
+    public void setLocation(Identifier location) {
         super.setLocation(location);
         location = this.resourceLocation;
         for (JsonVariable c : constants)
