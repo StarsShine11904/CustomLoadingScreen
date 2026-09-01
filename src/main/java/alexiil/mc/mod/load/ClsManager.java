@@ -3,20 +3,16 @@ package alexiil.mc.mod.load;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.lwjgl.opengl.Display;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.IResource;
-import net.minecraft.client.resources.IResourceManager;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
-
-import net.minecraftforge.fml.common.ProgressManager;
-import net.minecraftforge.fml.common.ProgressManager.ProgressBar;
 
 import alexiil.mc.mod.load.json.ConfigManager;
 import alexiil.mc.mod.load.json.JsonConfig;
@@ -54,11 +50,12 @@ public class ClsManager {
     private static final List<Double> forgeProgressBarPercents = new ArrayList<>();
 
     private static MinecraftDisplayerRenderer instance;
-    private static IResourceManager resManager;
+    private static ResourceManager resManager;
 
     static {
         FUNC_CTX.putConstantBoolean("dark_mode", CustomLoadingScreen.darkMode);
 
+        // 保留給主題 JSON 運算式引擎使用，在 Fabric 下提供安全預設值
         FUNC_CTX.put_l("forge_progress_bar_count", forgeProgressBarTitles::size);
         FUNC_CTX.put_l_o("forge_progress_bar_title", String.class, (index) -> {
             if (index < 0 || index >= forgeProgressBarTitles.size()) {
@@ -103,9 +100,15 @@ public class ClsManager {
         FUNC_CTX.put_s_s("translate", Translation::translate);
     }
 
+    public static void init() {
+        // 提供給進入點呼叫以載入靜態區塊
+    }
+
     public static boolean load() throws InvalidExpressionException {
-        resManager = Minecraft.getMinecraft().getResourceManager();
-        Minecraft.getMinecraft().refreshResources();
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null) {
+            resManager = client.getResourceManager();
+        }
 
         String used = CustomLoadingScreen.customConfigPath;
         JsonConfig cfg = ConfigManager.getAsConfig(used);
@@ -164,26 +167,12 @@ public class ClsManager {
             NODE_STATUS.value = SingleProgressBarTracker.getStatusText();
             NODE_STATUS_SUB.value = SingleProgressBarTracker.getSubStatus();
             NODE_PERCENTAGE.value = SingleProgressBarTracker.getProgress() / SingleProgressBarTracker.MAX_PROGRESS_D;
-
-            Iterator<ProgressBar> i = ProgressManager.barIterator();
-            forgeProgressBarTitles.clear();
-            forgeProgressBarMessages.clear();
-            forgeProgressBarPercents.clear();
-            while (i.hasNext()) {
-                ProgressBar b = i.next();
-                forgeProgressBarTitles.add(b.getTitle());
-                forgeProgressBarMessages.add(b.getMessage());
-                double div = b.getSteps();
-                if (div <= 0) {
-                    forgeProgressBarPercents.add(0.0);
-                } else {
-                    forgeProgressBarPercents.add((b.getStep()) / div);
-                }
-            }
         }
         RESOLUTION.update();
         NODE_TIME.value = MainSplashRenderer.getTotalTime() / 1000.0;
-        instance.render();
+        if (instance != null) {
+            instance.render();
+        }
     }
 
     public static boolean renderTransitionFrame() {
@@ -192,7 +181,9 @@ public class ClsManager {
     }
 
     public static void finish() {
-        instance.close();
+        if (instance != null) {
+            instance.close();
+        }
     }
 
     public static class Resolution {
@@ -204,7 +195,9 @@ public class ClsManager {
             this.height = Display.getHeight();
             int scaleFactor = 1;
             boolean unicode = false;
-            int guiScale = Minecraft.getMinecraft().gameSettings.guiScale;
+            
+            MinecraftClient client = MinecraftClient.getInstance();
+            int guiScale = client != null && client.options != null ? client.options.guiScale : 0;
 
             if (guiScale == 0) {
                 guiScale = 1000;
@@ -238,7 +231,7 @@ public class ClsManager {
         }
     }
 
-    public static IResource getResource(ResourceLocation identifier) throws IOException {
+    public static Resource getResource(Identifier identifier) throws IOException {
         return resManager.getResource(identifier);
     }
 }
