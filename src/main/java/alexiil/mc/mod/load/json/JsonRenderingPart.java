@@ -6,7 +6,7 @@ import java.util.List;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.baked.BakedRender;
 import alexiil.mc.mod.load.baked.BakedRenderingPart;
@@ -48,7 +48,7 @@ public class JsonRenderingPart extends JsonConfigurable<JsonRenderingPart, Baked
     }
 
     @Override
-    public void setLocation(ResourceLocation location) {
+    public void setLocation(Identifier location) {
         super.setLocation(location);
         location = this.resourceLocation;
         image.setLocation(location);
@@ -77,7 +77,6 @@ public class JsonRenderingPart extends JsonConfigurable<JsonRenderingPart, Baked
         BakedInsn[] instructions = args.toArray(new BakedInsn[args.size()]);
 
         INodeBoolean shouldRenderFunc;
-        // = FunctionBaker.bakeFunctionBoolean(shouldRender == null ? "true" : shouldRender, functions);
         if (shouldRender == null) {
             shouldRenderFunc = NodeConstantBoolean.TRUE;
         } else {
