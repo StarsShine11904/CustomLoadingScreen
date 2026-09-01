@@ -16,10 +16,9 @@ import com.google.gson.JsonSyntaxException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.IResource;
-import net.minecraft.client.resources.IResourceManager;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.CLSLog;
 import alexiil.mc.mod.load.ClsManager;
@@ -79,41 +78,36 @@ public class ConfigManager {
     public static final Gson GSON_DEFAULT;
 
     private static final Map<Class<? extends JsonConfigurable<?, ?>>, EType> types = Maps.newHashMap();
-    private static IResourceManager resManager = Minecraft.getMinecraft().getResourceManager();
-    private static final Map<ResourceLocation, String> cache = Maps.newHashMap(), failedCache = Maps.newHashMap();
+    private static final Map<Identifier, String> cache = Maps.newHashMap(), failedCache = Maps.newHashMap();
 
     static {
-        GSON_ADAPTORS = new GsonBuilder()//
-            .registerTypeAdapter(JsonConfig.class, ConfigDeserialiser.INSTANCE)//
-            .registerTypeAdapter(JsonRenderingPart.class, RenderingPartDeserialiser.INSTANCE)//
-            .registerTypeAdapter(JsonRender.class, ImageDeserialiser.INSTANCE)//
-            .registerTypeAdapter(JsonInsn.class, InstructionDeserialiser.INSTANCE)//
-            .registerTypeAdapter(JsonVariable[].class, VariableArrayDeserialiser.VARIABLES)//
-            .registerTypeAdapter(JsonConstant[].class, VariableArrayDeserialiser.CONSTANTS)//
-            .registerTypeAdapter(JsonFactory.class, FactoryDeserialiser.INSTANCE)//
-            .registerTypeAdapter(Area.class, Area.DESERIALISER)//
-            // .registerTypeAdapter(JsonAction.class, ActionDeserialiser.INSTANCE)//
+        GSON_ADAPTORS = new GsonBuilder()
+            .registerTypeAdapter(JsonConfig.class, ConfigDeserialiser.INSTANCE)
+            .registerTypeAdapter(JsonRenderingPart.class, RenderingPartDeserialiser.INSTANCE)
+            .registerTypeAdapter(JsonRender.class, ImageDeserialiser.INSTANCE)
+            .registerTypeAdapter(JsonInsn.class, InstructionDeserialiser.INSTANCE)
+            .registerTypeAdapter(JsonVariable[].class, VariableArrayDeserialiser.VARIABLES)
+            .registerTypeAdapter(JsonConstant[].class, VariableArrayDeserialiser.CONSTANTS)
+            .registerTypeAdapter(JsonFactory.class, FactoryDeserialiser.INSTANCE)
+            .registerTypeAdapter(Area.class, Area.DESERIALISER)
             .create();
         GSON_DEFAULT = new GsonBuilder().setPrettyPrinting().create();
     }
 
-    private static String getFirst(ResourceLocation identifier, boolean firstAttempt, boolean hasDefaut) {
+    private static String getFirst(Identifier identifier, boolean firstAttempt, boolean hasDefaut) {
         if (identifier == null) {
             throw new NullPointerException("Identifier provided shouldn't have been null!");
         }
-        if ("config".equals(identifier.getResourceDomain())) {
-            File file = new File("config/customloadingscreen", identifier.getResourcePath());
+        if ("config".equals(identifier.getNamespace())) {
+            File file = new File("config/customloadingscreen", identifier.getPath());
             try (FileInputStream fis = new FileInputStream(file)) {
                 return IOUtils.toString(fis, StandardCharsets.UTF_8);
             } catch (IOException e) {
                 if (firstAttempt) {
-
                     String real = file.toString();
                     try {
                         real = file.getCanonicalPath();
-                    } catch (IOException io) {
-                        // Ignore
-                    }
+                    } catch (IOException ignored) {}
                     if (!hasDefaut) {
                         CLSLog.warn("Tried to get the resource but failed! (" + real + ") because " + e.getClass());
                     }
@@ -121,11 +115,11 @@ public class ConfigManager {
                 return null;
             }
         }
-        try (IResource res = ClsManager.getResource(identifier)) {
-            try (InputStream stream = res.getInputStream()) {
+        try (Resource res = ClsManager.getResource(identifier)) {
+            try (InputStream stream = res.asStream()) {
                 return IOUtils.toString(stream, StandardCharsets.UTF_8);
             } catch (IOException e) {
-                CLSLog.warn("Tried to access \"" + identifier + "\", but an IO exception occoured!", e);
+                CLSLog.warn("Tried to access \"" + identifier + "\", but an IO exception occurred!", e);
                 return null;
             }
         } catch (IOException e) {
@@ -136,12 +130,12 @@ public class ConfigManager {
         }
     }
 
-    public static InputStream getInputStream(ResourceLocation identifier) throws FileNotFoundException {
+    public static InputStream getInputStream(Identifier identifier) throws FileNotFoundException {
         if (identifier == null) {
             throw new NullPointerException("Identifier provided shouldn't have been null!");
         }
-        if ("config".equals(identifier.getResourceDomain())) {
-            File file = new File("config/customloadingscreen", identifier.getResourcePath());
+        if ("config".equals(identifier.getNamespace())) {
+            File file = new File("config/customloadingscreen", identifier.getPath());
             try {
                 return new FileInputStream(file);
             } catch (FileNotFoundException fnfe) {
@@ -154,9 +148,7 @@ public class ConfigManager {
         }
 
         try {
-            IResource res = ClsManager.getResource(identifier);
-
-            // Wrap the resource
+            Resource res = ClsManager.getResource(identifier);
             return new ResourceWrappingInputStream(res);
         } catch (FileNotFoundException fnfe) {
             throw fnfe;
@@ -167,7 +159,7 @@ public class ConfigManager {
         }
     }
 
-    private static String getTextResource(ResourceLocation identifier, boolean hasDefaut) {
+    private static String getTextResource(Identifier identifier, boolean hasDefaut) {
         if (identifier == null) throw new NullPointerException("Identifier provided shouldn't have been null!");
         if (cache.containsKey(identifier)) {
             return cache.get(identifier);
@@ -186,16 +178,14 @@ public class ConfigManager {
         return actual;
     }
 
-    /** This makes the assumption that the type.clazz is the same as T or a subclass of T. Because this is a
-     * package-protected function this is known and so it will NEVER throw a class cast exception. */
-    /* For some reason, using <T extends JsonConfigurable<T, ?>> didn't compile. (But it did in eclipse? What?) */
+    @SuppressWarnings("unchecked")
     static <T extends JsonConfigurable<T, ?>> T getAsT(EType type, String location) throws InvalidExpressionException {
         if (StringUtils.isEmpty(location)) {
             CLSLog.warn("Location was given as null!", new Throwable());
             throw new JsonSyntaxException("Invalid location '" + location + "'");
         }
         CLSLog.info("Getting " + location + " as " + type);
-        ResourceLocation loc = getLocation(type, location);
+        Identifier loc = getLocation(type, location);
         String text = getTextResource(loc, type.hasDefault());
         if (text == null) {
             JsonConfigurable<?, ?> failed = type.getNotFound(location);
@@ -216,8 +206,6 @@ public class ConfigManager {
         }
     }
 
-    /** Rendering parts act slightly differently: if they don't exist, but an image with the same name DOES, then use
-     * the image and provide a default rendering part. */
     public static JsonRenderingPart getAsRenderingPart(String location) throws InvalidExpressionException {
         return getAsT(EType.RENDERING_PART, location);
     }
@@ -242,31 +230,7 @@ public class ConfigManager {
         return getAsT(EType.CONFIG, location);
     }
 
-    public static void getAsScript(String location) {
-        // TODO: Support for scripts that can do arbitrary things for displaying
-        // Scripts should run once each tick for each thing they are associated with
-        // (Scripts could just be for the config, for a specific image or more created by factories)
-    }
-
-    public static ResourceLocation getLocation(EType type, String base) {
-
-        /* Namespace rules: */
-
-        // If the location starts contains a colon before a slash then it's a namespace,
-        // and we don't do anything special other that use it instead of the default.
-
-        // If the location starts with "config/" then we use "config" as the namespace
-        // and we *don't* add the type prefix if the type is EType.CONFIG.
-
-        /* Path rules: */
-
-        // We always append ".json" to the path, no exceptions
-        // The other rules are a bit more complicated:
-
-        // If it starts with "builtin/" or "sample/" then we bring that to the front.
-
-        // Then we add "type"
-
+    public static Identifier getLocation(EType type, String base) {
         String namespace = "customloadingscreen";
         String path;
         int colon = base.indexOf(':');
@@ -298,6 +262,6 @@ public class ConfigManager {
             }
         }
 
-        return new ResourceLocation(namespace, path + ".json");
+        return new Identifier(namespace, path + ".json");
     }
 }
