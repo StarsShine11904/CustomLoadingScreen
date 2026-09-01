@@ -9,33 +9,33 @@ import java.util.Map;
 
 import org.lwjgl.opengl.GL11;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.client.renderer.texture.TextureUtil;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.client.resources.IResource;
-import net.minecraft.client.resources.SimpleResource;
-import net.minecraft.client.settings.GameSettings;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.option.GameOptions;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.resource.Resource;
+import net.minecraft.client.resource.ResourceImpl;
+import net.minecraft.client.texture.TextureManager;
+import net.minecraft.client.texture.TextureUtil;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.CLSLog;
 import alexiil.mc.mod.load.json.ConfigManager;
 
-public class FontRendererSeparate extends FontRenderer {
+public class FontRendererSeparate extends TextRenderer {
 
     private static final BufferedImage EMPTY_IMAGE = new BufferedImage(1, 1, BufferedImage.TYPE_3BYTE_BGR);
 
-    private final Map<ResourceLocation, BufferedImage> textureData = new HashMap<>();
-    private final Map<ResourceLocation, Integer> textureLocations = new HashMap<>();
+    private final Map<Identifier, BufferedImage> textureData = new HashMap<>();
+    private final Map<Identifier, Integer> textureLocations = new HashMap<>();
 
     private boolean __cls__replaced__underline;
     private boolean __cls__replaced__strikethrough;
 
     public FontRendererSeparate(
-        GameSettings settings, ResourceLocation location, TextureManager textureManagerIn, boolean unicode
+        GameOptions settings, Identifier location, TextureManager textureManagerIn, boolean unicode
     ) {
         super(settings, location, textureManagerIn, unicode);
 
@@ -43,13 +43,13 @@ public class FontRendererSeparate extends FontRenderer {
         for (int i = 0; i < 256; i++) {
             if (i == 8) continue;
             if (0xd8 <= i && i <= 0xf8) continue;
-            loadTex(new ResourceLocation(String.format("textures/font/unicode_page_%02x.png", i)));
+            loadTex(new Identifier(String.format("textures/font/unicode_page_%02x.png", i)));
         }
     }
 
-    private BufferedImage loadTex(ResourceLocation location) {
+    private BufferedImage loadTex(Identifier location) {
         try (InputStream stream = ConfigManager.getInputStream(location)) {
-            BufferedImage img = TextureUtil.readBufferedImage(stream);
+            BufferedImage img = TextureUtil.method_5866(stream);
             if (img == null) {
                 CLSLog.warn("Failed to read a texture from " + location + " - " + stream);
                 return EMPTY_IMAGE;
@@ -66,9 +66,8 @@ public class FontRendererSeparate extends FontRenderer {
     }
 
     @Override
-    protected void bindTexture(ResourceLocation location) {
+    protected void bindTexture(Identifier location) {
         if (textureLocations == null) {
-            // During init, so we don't care
             return;
         }
         Integer value = textureLocations.get(location);
@@ -79,7 +78,7 @@ public class FontRendererSeparate extends FontRenderer {
                 return;
             }
             int next = GL11.glGenTextures();
-            TextureUtil.uploadTextureImage(next, img);
+            TextureUtil.method_5858(next, img); // 或 TextureUtil.uploadTextureImage
             textureLocations.put(location, next);
             value = next;
         }
@@ -87,20 +86,20 @@ public class FontRendererSeparate extends FontRenderer {
     }
 
     @Override
-    protected IResource getResource(ResourceLocation location) throws IOException {
-        if ("config".equals(location.getResourceDomain())) {
+    protected Resource getResource(Identifier location) throws IOException {
+        if ("config".equals(location.getNamespace())) {
             InputStream stream = ConfigManager.getInputStream(location);
             InputStream metaStream = null;
             try {
                 metaStream = ConfigManager.getInputStream(
-                    new ResourceLocation(location.getResourceDomain(), location.getResourcePath() + ".mcmeta")
+                    new Identifier(location.getNamespace(), location.getPath() + ".mcmeta")
                 );
-            } catch (IOException e) {
-                // Ignored
-            }
-            return new SimpleResource(
+            } catch (IOException ignored) {}
+
+            MinecraftClient client = MinecraftClient.getInstance();
+            return new ResourceImpl(
                 "cls config", location, stream, metaStream,
-                Minecraft.getMinecraft().getResourcePackRepository().rprMetadataSerializer
+                client != null ? client.getResourcePackRepository().field_5393 : null
             );
         }
         return super.getResource(location);
@@ -114,40 +113,34 @@ public class FontRendererSeparate extends FontRenderer {
     }
 
     @Override
-    protected void setColor(float r, float g, float b, float a) {
+    protected void method_956(float r, float g, float b, float a) {
         GL11.glColor4f(r, g, b, a);
     }
 
     @Override
-    protected void enableAlpha() {
-        GL11.glEnable(GL11.GL_ALPHA_TEST);
-    }
-
-    @Override
-    protected void doDraw(float width) {
-
+    protected void method_961(float width) {
         if (__cls__replaced__strikethrough || __cls__replaced__underline) {
             Tessellator tess = Tessellator.getInstance();
             BufferBuilder bb = tess.getBuffer();
             GL11.glDisable(GL11.GL_TEXTURE_2D);
-            bb.begin(7, DefaultVertexFormats.POSITION);
+            bb.begin(7, VertexFormats.POSITION);
             if (__cls__replaced__strikethrough) {
-                int halfHeight = FONT_HEIGHT / 2;
-                bb.pos(posX, posY + halfHeight, 0).endVertex();
-                bb.pos(posX + width, posY + halfHeight, 0).endVertex();
-                bb.pos(posX + width, posY + halfHeight - 1, 0).endVertex();
-                bb.pos(posX, posY + halfHeight - 1, 0).endVertex();
+                int halfHeight = fontHeight / 2;
+                bb.vertex(x, y + halfHeight, 0).next();
+                bb.vertex(x + width, y + halfHeight, 0).next();
+                bb.vertex(x + width, y + halfHeight - 1, 0).next();
+                bb.vertex(x, y + halfHeight - 1, 0).next();
             }
             if (__cls__replaced__underline) {
-                bb.pos(posX - 1, posY + FONT_HEIGHT, 0).endVertex();
-                bb.pos(posX + width, posY + FONT_HEIGHT, 0).endVertex();
-                bb.pos(posX + width, posY + FONT_HEIGHT - 1, 0).endVertex();
-                bb.pos(posX - 1, posY + FONT_HEIGHT - 1, 0).endVertex();
+                bb.vertex(x - 1, y + fontHeight, 0).next();
+                bb.vertex(x + width, y + fontHeight, 0).next();
+                bb.vertex(x + width, y + fontHeight - 1, 0).next();
+                bb.vertex(x - 1, y + fontHeight - 1, 0).next();
             }
             tess.draw();
             GL11.glEnable(GL11.GL_TEXTURE_2D);
         }
 
-        posX += width;
+        x += width;
     }
 }
