@@ -24,7 +24,7 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:1.12.2"
-    mappings "net.legacyfabric:yarn:1.12.2+build.202106091603:v2"
+    mappings "net.legacyfabric:yarn:1.12.2+build.415:v2"
     modImplementation "net.fabricmc:fabric-loader:0.15.11"
 }
 
