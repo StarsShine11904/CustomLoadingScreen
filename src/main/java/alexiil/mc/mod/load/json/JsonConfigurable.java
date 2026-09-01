@@ -10,7 +10,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.baked.BakedConfigurable;
 
@@ -21,10 +21,10 @@ import buildcraft.lib.expression.api.InvalidExpressionException;
  * @param <B> The class that this is baked to. */
 public abstract class JsonConfigurable<C extends JsonConfigurable<C, B>, B extends BakedConfigurable> {
     /** This is used for debugging and is initialised from ConfigManager.getAsT() */
-    public transient ResourceLocation resourceLocation;
+    public transient Identifier resourceLocation;
     private transient String rawText;
 
-    public void setLocation(ResourceLocation location) {
+    public void setLocation(Identifier location) {
         if (resourceLocation == null) {
             resourceLocation = location;
         }
