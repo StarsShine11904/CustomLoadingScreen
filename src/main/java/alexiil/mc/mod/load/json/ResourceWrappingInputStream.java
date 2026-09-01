@@ -3,15 +3,15 @@ package alexiil.mc.mod.load.json;
 import java.io.IOException;
 import java.io.InputStream;
 
-import net.minecraft.client.resources.IResource;
+import net.minecraft.resource.Resource;
 
 public final class ResourceWrappingInputStream extends InputStream {
-    private final IResource res;
+    private final Resource res;
     final InputStream from;
 
-    public ResourceWrappingInputStream(IResource res) {
+    public ResourceWrappingInputStream(Resource res) {
         this.res = res;
-        from = res.getInputStream();
+        this.from = res.asStream();
     }
 
     @Override
@@ -51,8 +51,6 @@ public final class ResourceWrappingInputStream extends InputStream {
 
     @Override
     public void close() throws IOException {
-        // All so that we can close the resource rather than
-        // just the stream
         res.close();
     }
 }
