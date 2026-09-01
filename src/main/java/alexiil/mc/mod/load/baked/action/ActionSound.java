@@ -1,9 +1,9 @@
 package alexiil.mc.mod.load.baked.action;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.audio.ISound;
-import net.minecraft.client.audio.SoundHandler;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.SoundInstance;
+import net.minecraft.client.sound.SoundManager;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.baked.BakedAction;
 
@@ -11,10 +11,10 @@ import buildcraft.lib.expression.api.IExpressionNode.INodeBoolean;
 import buildcraft.lib.expression.api.IExpressionNode.INodeObject;
 
 public class ActionSound extends BakedAction {
-    public static final SoundHandler sndHandler = Minecraft.getMinecraft().getSoundHandler();
+    public static final SoundManager sndHandler = MinecraftClient.getInstance().getSoundManager();
     public final INodeObject<String> sound;
     public final INodeBoolean repeat;
-    private ISound currentSound = null;
+    private SoundInstance currentSound = null;
 
     public ActionSound(INodeBoolean conditionStart, INodeBoolean conditionEnd, INodeObject<String> sound, INodeBoolean repeat) {
         super(conditionStart, conditionEnd);
@@ -24,16 +24,16 @@ public class ActionSound extends BakedAction {
 
     @Override
     protected void start() {
-        ResourceLocation soundLocation = new ResourceLocation(sound.evaluate());
-        // currentSound = PositionedSoundRecord.create(soundLocation);
-        // sndHandler.playSound(currentSound);
+        Identifier soundLocation = new Identifier(sound.evaluate());
+        // currentSound = PositionedSoundInstance.master(new SoundEvent(soundLocation), 1.0F);
+        // sndHandler.play(currentSound);
         // TODO finish action sound!
     }
 
     @Override
     protected void tick() {
-        if ((!sndHandler.isSoundPlaying(currentSound)) && repeat.evaluate() && !conditionEnd.evaluate()) {
-            sndHandler.playSound(currentSound);
+        if (currentSound != null && (!sndHandler.isPlaying(currentSound)) && repeat.evaluate() && !conditionEnd.evaluate()) {
+            sndHandler.play(currentSound);
         }
     }
 
