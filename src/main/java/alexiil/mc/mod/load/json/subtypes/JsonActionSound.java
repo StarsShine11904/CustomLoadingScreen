@@ -23,7 +23,7 @@ public class JsonActionSound extends JsonAction {
     @Override
     protected BakedAction actuallyBake(FunctionContext functions) throws InvalidExpressionException {
         INodeBoolean start = GenericExpressionCompiler.compileExpressionBoolean(conditionStart, functions);
-        INodeBoolean end = GenericExpressionCompiler.compileExpressionBoolean(conditionStart, functions);
+        INodeBoolean end = GenericExpressionCompiler.compileExpressionBoolean(conditionEnd, functions);
         INodeObject<String> _sound = GenericExpressionCompiler.compileExpressionString(sound, functions);
         INodeBoolean _repeat = GenericExpressionCompiler.compileExpressionBoolean(repeat, functions);
         return new ActionSound(start, end, _sound, _repeat);
