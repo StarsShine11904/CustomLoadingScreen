@@ -14,26 +14,24 @@ import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import javax.annotation.Nullable;
-
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GLContext;
 import org.lwjgl.opengl.KHRDebug;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.ITextureObject;
-import net.minecraft.client.renderer.texture.SimpleTexture;
-import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.client.resources.AbstractResourcePack;
-import net.minecraft.client.resources.FallbackResourceManager;
-import net.minecraft.client.resources.FileResourcePack;
-import net.minecraft.client.resources.FolderResourcePack;
-import net.minecraft.client.resources.IResource;
-import net.minecraft.client.resources.IResourceManager;
-import net.minecraft.client.resources.IResourcePack;
-import net.minecraft.client.resources.LegacyV2Adapter;
-import net.minecraft.client.resources.SimpleReloadableResourceManager;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.resource.AbstractResourcePack;
+import net.minecraft.client.resource.DirectoryResourcePack;
+import net.minecraft.client.resource.FallbackResourceManager;
+import net.minecraft.client.resource.LegacyResourcePackAdapter;
+import net.minecraft.client.resource.ReloadableResourceManagerImpl;
+import net.minecraft.client.resource.Resource;
+import net.minecraft.client.resource.ResourceManager;
+import net.minecraft.client.resource.ResourcePack;
+import net.minecraft.client.resource.ZipResourcePack;
+import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.client.texture.ResourceTexture;
+import net.minecraft.client.texture.TextureManager;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.CLSLog;
 import alexiil.mc.mod.load.CustomLoadingScreen;
@@ -48,14 +46,13 @@ public final class TextureLoader {
     private static final Method METHOD_FILE_PACK_GETTER;
 
     static {
-        Class<FileResourcePack> filePack = FileResourcePack.class;
-
+        Class<ZipResourcePack> filePack = ZipResourcePack.class;
         Method filePackGetter = null;
 
-        FIELD_RES_MANAGER_MAP = getField(SimpleReloadableResourceManager.class, Map.class);
+        FIELD_RES_MANAGER_MAP = getField(ReloadableResourceManagerImpl.class, Map.class);
         FIELD_FALLBACK_LIST = getField(FallbackResourceManager.class, List.class);
         FIELD_ABS_PACK_FILE = getField(AbstractResourcePack.class, File.class);
-        FIELD_LEGACY_ADAPTOR_PACK = getField(LegacyV2Adapter.class, IResourcePack.class);
+        FIELD_LEGACY_ADAPTOR_PACK = getField(LegacyResourcePackAdapter.class, ResourcePack.class);
 
         for (Method m : filePack.getDeclaredMethods()) {
             if ((m.getModifiers() & Modifier.STATIC) != 0) {
@@ -71,8 +68,9 @@ public final class TextureLoader {
             break;
         }
 
-        filePackGetter.setAccessible(true);
-
+        if (filePackGetter != null) {
+            filePackGetter.setAccessible(true);
+        }
         METHOD_FILE_PACK_GETTER = filePackGetter;
     }
 
@@ -81,23 +79,21 @@ public final class TextureLoader {
             if ((f.getModifiers() & Modifier.STATIC) != 0) {
                 continue;
             }
-            if (f.getType().equals(fldType)) {
+            if (fldType.isAssignableFrom(f.getType())) {
                 f.setAccessible(true);
                 return f;
             }
         }
-        throw new IllegalStateException("Failed to find a field!");
+        return null;
     }
 
-    @Nullable
-    public static InputStream openResourceStream(ResourceLocation location) throws IOException {
-
+    public static InputStream openResourceStream(Identifier location) throws IOException {
         if (CustomLoadingScreen.debugResourceLoading) {
             CLSLog.info("[debug] Opening resource " + location);
         }
 
-        if ("config".equals(location.getResourceDomain())) {
-            File fle = new File("config/customloadingscreen/" + location.getResourcePath());
+        if ("config".equals(location.getNamespace())) {
+            File fle = new File("config/customloadingscreen/" + location.getPath());
             if (fle.exists()) {
                 if (CustomLoadingScreen.debugResourceLoading) {
                     CLSLog.info("[debug]   - Found resource file at " + fle);
@@ -116,183 +112,124 @@ public final class TextureLoader {
             }
         }
 
-        IResourceManager resManager = Minecraft.getMinecraft().getResourceManager();
+        MinecraftClient mc = MinecraftClient.getInstance();
+        ResourceManager resManager = mc != null ? mc.getResourceManager() : null;
 
-        try {
-            IResource res = resManager.getResource(location);
-            if (res != null) {
-                if (CustomLoadingScreen.debugResourceLoading) {
-                    CLSLog.info("[debug]   - Found resource: " + res.getResourcePackName() + " : " + res);
-                }
-                return new ResourceWrappingInputStream(res);
-            }
-        } catch (IOException e) {
-            if (CustomLoadingScreen.debugResourceLoading) {
-                CLSLog.warn("[debug]   x Failed to find resource, falling back to manual iteration....", e);
-            }
-        }
-
-        if (resManager instanceof SimpleReloadableResourceManager) {
-            SimpleReloadableResourceManager srm = (SimpleReloadableResourceManager) resManager;
-
-            if (CustomLoadingScreen.debugResourceLoading) {
-                CLSLog.info("[debug]   Manually interating over MC's SimpleResourceManager");
-            }
-
-            Map<?, ?> map;
+        if (resManager != null) {
             try {
-                map = (Map<?, ?>) FIELD_RES_MANAGER_MAP.get(srm);
-            } catch (IllegalArgumentException | IllegalAccessException e) {
-                if (CustomLoadingScreen.debugResourceLoading) {
-                    CLSLog.warn("[debug]   x Failed to retrieve the map!", e);
-                }
-                return null;
-            }
-
-            Object value = map.get(location.getResourceDomain());
-
-            if (value == null) {
-                if (CustomLoadingScreen.debugResourceLoading) {
-                    CLSLog.info("[debug]   - Found no entry for the domain!");
-                }
-                return null;
-            }
-
-            if (CustomLoadingScreen.debugResourceLoading) {
-                CLSLog.info("[debug]   - Looking at " + value);
-            }
-
-            FallbackResourceManager fallback = (FallbackResourceManager) value;
-
-            List<?> list;
-
-            try {
-                list = (List<?>) FIELD_FALLBACK_LIST.get(fallback);
-            } catch (IllegalArgumentException | IllegalAccessException e) {
-                CLSLog.warn("[debug]    x Failed to retrieve the list!", e);
-                return null;
-            }
-
-            for (Object o : list) {
-                IResourcePack pack = (IResourcePack) o;
-
-                if (pack instanceof LegacyV2Adapter) {
-                    try {
-                        pack = (IResourcePack) FIELD_LEGACY_ADAPTOR_PACK.get(pack);
-                    } catch (IllegalArgumentException | IllegalAccessException e) {
-                        CLSLog.warn("[debug]    x Failed to retrieve the backing resource pack!", e);
+                Resource res = resManager.getResource(location);
+                if (res != null) {
+                    if (CustomLoadingScreen.debugResourceLoading) {
+                        CLSLog.info("[debug]   - Found resource: " + res);
                     }
+                    return new ResourceWrappingInputStream(res);
                 }
-
-                if (pack instanceof AbstractResourcePack) {
-                    File file;
-
-                    try {
-                        file = (File) FIELD_ABS_PACK_FILE.get(pack);
-                    } catch (IllegalArgumentException | IllegalAccessException e) {
-                        CLSLog.warn("[debug]     x Failed to retrieve the file!", e);
-                        continue;
-                    }
-
-                    String realPath = "assets/" + location.getResourceDomain() + "/" + location.getResourcePath();
-
-                    if (pack instanceof FileResourcePack) {
-                        FileResourcePack frp = (FileResourcePack) pack;
-                        CLSLog.info("[debug]   - Looking at FileResourcePack " + file);
-
-                        ZipFile zip;
-                        try {
-                            zip = (ZipFile) METHOD_FILE_PACK_GETTER.invoke(pack);
-                        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                            CLSLog.warn("[debug]     x Failed to retrieve the ZipFile!", e);
-                            continue;
-                        }
-
-                        ZipEntry entry = zip.getEntry(realPath);
-
-                        if (entry != null) {
-                            if (CustomLoadingScreen.debugResourceLoading) {
-                                CLSLog.info("[debug]   - Found ZipEntry " + entry);
-                            }
-
-                            try {
-                                return zip.getInputStream(entry);
-                            } catch (IOException e) {
-                                CLSLog.warn("[debug]   - Failed to open ZipEntry ", e);
-                            }
-                        }
-
-                        continue;
-                    } else if (pack instanceof FolderResourcePack) {
-                        FolderResourcePack fldr = (FolderResourcePack) pack;
-
-                        if (CustomLoadingScreen.debugResourceLoading) {
-                            CLSLog.info("[debug]   - Looking at FolderResourcePack " + file);
-                        }
-
-                        File target = new File(file, realPath);
-
-                        if (target.isFile()) {
-                            if (CustomLoadingScreen.debugResourceLoading) {
-                                CLSLog.info("[debug]   - Found target file " + target);
-                            }
-
-                            return new FileInputStream(target);
-                        }
-
-                        continue;
-                    }
-                }
-
+            } catch (IOException e) {
                 if (CustomLoadingScreen.debugResourceLoading) {
-                    CLSLog.info("[debug]   - Looking at unknown ResourcePack " + pack.getClass());
+                    CLSLog.warn("[debug]   x Failed to find resource, falling back to manual iteration....", e);
                 }
+            }
+
+            if (resManager instanceof ReloadableResourceManagerImpl && FIELD_RES_MANAGER_MAP != null && FIELD_FALLBACK_LIST != null) {
+                ReloadableResourceManagerImpl srm = (ReloadableResourceManagerImpl) resManager;
+                Map<?, ?> map;
                 try {
-                    return pack.getInputStream(location);
-                } catch (IOException e) {
-                    CLSLog.warn("[debug]   - Failed to open stream as " + e.getClass() + ":" + e.getMessage());
+                    map = (Map<?, ?>) FIELD_RES_MANAGER_MAP.get(srm);
+                } catch (Exception e) {
+                    return null;
                 }
-            }
-        } else {
-            if (CustomLoadingScreen.debugResourceLoading) {
-                CLSLog.info(
-                    "[debug]   Unknown IResourceManager " + resManager.getClass() + ", aborting manual iteration!"
-                );
+
+                if (map != null) {
+                    Object value = map.get(location.getNamespace());
+                    if (value instanceof FallbackResourceManager) {
+                        FallbackResourceManager fallback = (FallbackResourceManager) value;
+                        List<?> list = null;
+                        try {
+                            list = (List<?>) FIELD_FALLBACK_LIST.get(fallback);
+                        } catch (Exception ignored) {}
+
+                        if (list != null) {
+                            for (Object o : list) {
+                                ResourcePack pack = (ResourcePack) o;
+
+                                if (pack instanceof LegacyResourcePackAdapter && FIELD_LEGACY_ADAPTOR_PACK != null) {
+                                    try {
+                                        pack = (ResourcePack) FIELD_LEGACY_ADAPTOR_PACK.get(pack);
+                                    } catch (Exception ignored) {}
+                                }
+
+                                if (pack instanceof AbstractResourcePack && FIELD_ABS_PACK_FILE != null) {
+                                    File file = null;
+                                    try {
+                                        file = (File) FIELD_ABS_PACK_FILE.get(pack);
+                                    } catch (Exception ignored) {}
+
+                                    String realPath = "assets/" + location.getNamespace() + "/" + location.getPath();
+
+                                    if (pack instanceof ZipResourcePack && METHOD_FILE_PACK_GETTER != null) {
+                                        ZipFile zip;
+                                        try {
+                                            zip = (ZipFile) METHOD_FILE_PACK_GETTER.invoke(pack);
+                                        } catch (Exception e) {
+                                            continue;
+                                        }
+
+                                        if (zip != null) {
+                                            ZipEntry entry = zip.getEntry(realPath);
+                                            if (entry != null) {
+                                                return zip.getInputStream(entry);
+                                            }
+                                        }
+                                    } else if (pack instanceof DirectoryResourcePack && file != null) {
+                                        File target = new File(file, realPath);
+                                        if (target.isFile()) {
+                                            return new FileInputStream(target);
+                                        }
+                                    }
+                                }
+
+                                try {
+                                    return pack.open(location);
+                                } catch (IOException ignored) {}
+                            }
+                        }
+                    }
+                }
             }
         }
 
         return null;
     }
 
-    public static void bindTexture(TextureManager manager, ResourceLocation location) {
-        ITextureObject current = manager.getTexture(location);
+    public static void bindTexture(TextureManager manager, Identifier location) {
+        AbstractTexture current = manager.getTexture(location);
 
         if (current != null) {
-            GL11.glBindTexture(GL11.GL_TEXTURE_2D, current.getGlTextureId());
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, current.getGlId());
             return;
         }
 
-        SimpleTexture texture = new ClsTexture(location);
+        ResourceTexture texture = new ClsTexture(location);
 
         if (GLContext.getCapabilities().GL_KHR_debug) {
             KHRDebug.glPushDebugGroup(KHRDebug.GL_DEBUG_SOURCE_APPLICATION, 10, "CLS_LoadCustomTexture");
         }
-        manager.loadTexture(location, texture);
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture.getGlTextureId());
+        manager.registerTexture(location, texture);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture.getGlId());
 
         if (GLContext.getCapabilities().GL_KHR_debug) {
             KHRDebug.glPopDebugGroup();
         }
     }
 
-    public static PreScannedImageData preScan(ResourceLocation res) {
-
+    public static PreScannedImageData preScan(Identifier res) {
         try {
             ClsTexture clsTexture = new ClsTexture(res);
-            clsTexture.loadImage(Minecraft.getMinecraft().getResourceManager());
-
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc != null && mc.getResourceManager() != null) {
+                clsTexture.load(mc.getResourceManager());
+            }
             return new PreScannedImageData(clsTexture);
-
         } catch (IOException io) {
             CLSLog.warn("Failed to pre-load the texture " + res, io);
             return null;
@@ -300,7 +237,6 @@ public final class TextureLoader {
     }
 
     public static class PreScannedImageData {
-
         public final ClsTexture texture;
 
         public PreScannedImageData(ClsTexture texture) {
@@ -308,11 +244,11 @@ public final class TextureLoader {
         }
 
         public void bind(TextureManager manager) {
-            ITextureObject current = manager.getTexture(texture.location());
+            AbstractTexture current = manager.getTexture(texture.location());
             if (current != null) {
-                GL11.glBindTexture(GL11.GL_TEXTURE_2D, current.getGlTextureId());
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, current.getGlId());
             } else {
-                manager.loadTexture(texture.location(), texture);
+                manager.registerTexture(texture.location(), texture);
             }
         }
     }
