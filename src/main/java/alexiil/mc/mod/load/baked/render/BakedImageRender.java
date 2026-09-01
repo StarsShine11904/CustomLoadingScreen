@@ -2,10 +2,10 @@ package alexiil.mc.mod.load.baked.render;
 
 import org.lwjgl.opengl.GL11;
 
-import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.render.MinecraftDisplayerRenderer;
 import alexiil.mc.mod.load.render.TextureLoader;
@@ -15,14 +15,11 @@ import buildcraft.lib.expression.node.value.NodeVariableDouble;
 
 public class BakedImageRender extends BakedRenderPositioned {
 
-    /** We only ever render 4 x (3 pos, 2 uv) ints each time then reset for the next face.
-     * <p>
-     * So this 64 is overkill. */
     private static final int TESS_INT_COUNT = 64;
 
     private final Tessellator tess = new Tessellator(TESS_INT_COUNT);
 
-    protected final ResourceLocation res;
+    protected final Identifier res;
     private final BakedArea pos, tex;
 
     PreScannedImageData preScanned = null;
@@ -31,7 +28,7 @@ public class BakedImageRender extends BakedRenderPositioned {
         NodeVariableDouble varWidth, NodeVariableDouble varHeight, String res, BakedArea pos, BakedArea tex
     ) {
         super(varWidth, varHeight);
-        this.res = new ResourceLocation(res);
+        this.res = new Identifier(res);
         this.pos = pos;
         this.tex = tex;
     }
@@ -55,11 +52,11 @@ public class BakedImageRender extends BakedRenderPositioned {
     public void render(MinecraftDisplayerRenderer renderer) {
         bindTexture(renderer);
         BufferBuilder vb = tess.getBuffer();
-        vb.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
-        vb.pos(pos._x, pos._y + pos._h, 0).tex(tex._x, tex._y + tex._h).endVertex();
-        vb.pos(pos._x + pos._w, pos._y + pos._h, 0).tex(tex._x + tex._w, tex._y + tex._h).endVertex();
-        vb.pos(pos._x + pos._w, pos._y, 0).tex(tex._x + tex._w, tex._y).endVertex();
-        vb.pos(pos._x, pos._y, 0).tex(tex._x, tex._y).endVertex();
+        vb.begin(GL11.GL_QUADS, VertexFormats.POSITION_TEXTURE);
+        vb.vertex(pos._x, pos._y + pos._h, 0).texture(tex._x, tex._y + tex._h).next();
+        vb.vertex(pos._x + pos._w, pos._y + pos._h, 0).texture(tex._x + tex._w, tex._y + tex._h).next();
+        vb.vertex(pos._x + pos._w, pos._y, 0).texture(tex._x + tex._w, tex._y).next();
+        vb.vertex(pos._x, pos._y, 0).texture(tex._x, tex._y).next();
         tess.draw();
     }
 
