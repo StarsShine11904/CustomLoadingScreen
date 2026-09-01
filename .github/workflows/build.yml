@@ -2,12 +2,6 @@ name: Build and Package Mod
 
 on:
   workflow_dispatch:
-    inputs:
-      release_build:
-        description: '是否為正式發布建置 (Release Build)'
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   build:
@@ -16,8 +10,6 @@ jobs:
     steps:
       - name: 檢出原始碼
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: 設定 JDK 21
         uses: actions/setup-java@v4
@@ -26,33 +18,11 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: 列出 repo & wrapper 檔案（debug）
-        run: |
-          echo "工作目錄: $(pwd)"
-          ls -la
-          echo "gradle 目錄:"
-          ls -la gradle || true
-          echo "gradle/wrapper 目錄:"
-          ls -la gradle/wrapper || true
-          echo "gradlew 檔案:"
-          ls -la gradlew || true
+      - name: 賦予 gradlew 執行權限
+        run: chmod +x gradlew
 
-      - name: 賦予 gradlew 執行權限（如果存在）
-        run: |
-          if [ -f ./gradlew ]; then chmod +x ./gradlew; fi
-
-      - name: 安裝 Gradle 8.4.1 到 runner（用於替代 wrapper）
-        run: |
-          echo "Installing Gradle 8.4.1 to /opt/gradle"
-          wget -q https://services.gradle.org/distributions/gradle-8.4.1-bin.zip -O /tmp/gradle-8.4.1.zip
-          sudo unzip -q -d /opt/gradle /tmp/gradle-8.4.1.zip
-          echo "PATH=/opt/gradle/gradle-8.4.1/bin:$PATH" >> $GITHUB_ENV
-          gradle --version || true
-
-      - name: 執行 Gradle 建置與打包（使用已安裝的 Gradle）
-        run: |
-          echo "Running build with installed Gradle"
-          gradle build --no-daemon --stacktrace
+      - name: 執行 Gradle 建置與打包
+        run: ./gradlew build --stacktrace
 
       - name: 上傳建置成果 (Mod Jar)
         uses: actions/upload-artifact@v4
