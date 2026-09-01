@@ -14,7 +14,7 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "alexiil.mods.loadingscr.CustomLoadingScreenClient"
+      "alexiil.mc.mod.load.CustomLoadingScreenClient"
     ]
   },
   "mixins": [
