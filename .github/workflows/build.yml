@@ -41,29 +41,18 @@ jobs:
         run: |
           if [ -f ./gradlew ]; then chmod +x ./gradlew; fi
 
-      - name: 產生 Gradle Wrapper（當 gradle-wrapper.jar 缺失時）
+      - name: 安裝 Gradle 8.4.1 到 runner（用於替代 wrapper）
         run: |
-          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
-            echo "gradle-wrapper.jar not found — installing Gradle and generating wrapper..."
-            wget -q https://services.gradle.org/distributions/gradle-8.4.1-bin.zip -O /tmp/gradle.zip
-            sudo unzip -q -d /opt/gradle /tmp/gradle.zip
-            export PATH=/opt/gradle/gradle-8.4.1/bin:$PATH
-            gradle --version
-            gradle wrapper --gradle-version 8.4.1
-            ls -la gradle/wrapper
-            chmod +x ./gradlew || true
-          else
-            echo "gradle-wrapper.jar exists; skipping generation."
-          fi
+          echo "Installing Gradle 8.4.1 to /opt/gradle"
+          wget -q https://services.gradle.org/distributions/gradle-8.4.1-bin.zip -O /tmp/gradle-8.4.1.zip
+          sudo unzip -q -d /opt/gradle /tmp/gradle-8.4.1.zip
+          echo "PATH=/opt/gradle/gradle-8.4.1/bin:$PATH" >> $GITHUB_ENV
+          gradle --version || true
 
-      - name: 執行 Gradle 建置與打包
+      - name: 執行 Gradle 建置與打包（使用已安裝的 Gradle）
         run: |
-          if [ -f ./gradlew ]; then
-            ./gradlew build --no-daemon --stacktrace
-          else
-            echo "gradlew not found; using installed gradle"
-            gradle build --no-daemon --stacktrace
-          fi
+          echo "Running build with installed Gradle"
+          gradle build --no-daemon --stacktrace
 
       - name: 上傳建置成果 (Mod Jar)
         uses: actions/upload-artifact@v4
