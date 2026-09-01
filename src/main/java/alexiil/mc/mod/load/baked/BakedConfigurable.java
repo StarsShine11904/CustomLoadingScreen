@@ -1,14 +1,14 @@
 package alexiil.mc.mod.load.baked;
 
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Identifier;
 
 import alexiil.mc.mod.load.render.MinecraftDisplayerRenderer;
 
 public abstract class BakedConfigurable {
-    private ResourceLocation origin = null;
+    private Identifier origin = null;
     private String rawText;
 
-    public ResourceLocation getOrigin() {
+    public Identifier getOrigin() {
         return origin;
     }
 
@@ -16,7 +16,7 @@ public abstract class BakedConfigurable {
         return rawText;
     }
 
-    public final void setOrigin(ResourceLocation location, String src) {
+    public final void setOrigin(Identifier location, String src) {
         if (location != null) origin = location;
         if (src != null) rawText = src;
     }
