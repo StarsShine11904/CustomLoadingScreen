@@ -13,77 +13,62 @@ import org.lwjgl.opengl.GL14;
 import org.lwjgl.opengl.GLContext;
 import org.lwjgl.opengl.KHRDebug;
 
-import net.minecraft.client.renderer.texture.SimpleTexture;
-import net.minecraft.client.renderer.texture.TextureUtil;
-import net.minecraft.client.resources.IResourceManager;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.client.texture.ResourceTexture;
+import net.minecraft.client.texture.TextureUtil;
+import net.minecraft.resource.ResourceManager;
+import net.minecraft.util.Identifier;
 
-public class ClsTexture extends SimpleTexture {
+public class ClsTexture extends ResourceTexture {
 
     private BufferedImage image;
     private boolean blur;
     private boolean clamp;
 
-    public ClsTexture(ResourceLocation location) {
+    public ClsTexture(Identifier location) {
         super(location);
     }
 
-    public ResourceLocation location() {
-        return textureLocation;
+    public Identifier location() {
+        return location;
     }
 
     @Override
-    public int getGlTextureId() {
-        if (glTextureId == -1) {
-            glTextureId = GL11.glGenTextures();
+    public int getGlId() {
+        if (glId == -1) {
+            glId = GL11.glGenTextures();
         }
-        return glTextureId;
+        return glId;
     }
 
     @Override
-    public void deleteGlTexture() {
-        if (glTextureId != -1) {
-            GL11.glDeleteTextures(glTextureId);
-            glTextureId = -1;
+    public void clearGlId() {
+        if (glId != -1) {
+            GL11.glDeleteTextures(glId);
+            glId = -1;
         }
     }
 
-    public void loadImage(IResourceManager resourceManager) throws IOException {
-
+    public void loadImage(ResourceManager resourceManager) throws IOException {
         try (InputStream is = TextureLoader.openResourceStream(location())) {
-
             if (is == null) {
                 throw new FileNotFoundException(location().toString());
             }
 
-            image = TextureUtil.readBufferedImage(is);
+            image = TextureUtil.method_5866(is); // 或 TextureUtil.readBufferedImage(is)
             blur = false;
             clamp = false;
-
-            // if (m.exists()) {
-            // try {
-            // TextureMetadataSection meta = (TextureMetadataSection) iresource.getMetadata("texture");
-            //
-            // if (meta != null) {
-            // blur = meta.getTextureBlur();
-            // clamp = meta.getTextureClamp();
-            // }
-            // } catch (RuntimeException runtimeexception) {
-            // LOGGER.warn("Failed reading metadata of: {}", this.textureLocation, runtimeexception);
-            // }
-            // }
         }
     }
 
     @Override
-    public void loadTexture(IResourceManager resourceManager) throws IOException {
-        deleteGlTexture();
+    public void load(ResourceManager resourceManager) throws IOException {
+        clearGlId();
 
         if (image == null) {
             loadImage(resourceManager);
         }
 
-        int id = getGlTextureId();
+        int id = getGlId();
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, id);
 
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LEVEL, 0);
@@ -92,7 +77,7 @@ public class ClsTexture extends SimpleTexture {
         GL11.glTexParameterf(GL11.GL_TEXTURE_2D, GL14.GL_TEXTURE_LOD_BIAS, 0.0F);
 
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, blur ? GL11.GL_LINEAR : GL11.GL_NEAREST);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, blur ? GL11.GL_LINEAR : GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, blur ? GL11.GL_LINEAR : GL11.GL_NEAREST);
 
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, clamp ? GL11.GL_CLAMP : GL11.GL_REPEAT);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, clamp ? GL11.GL_CLAMP : GL11.GL_REPEAT);
